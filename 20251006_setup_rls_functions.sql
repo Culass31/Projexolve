@@ -313,18 +313,14 @@ BEGIN
     -- =============================================
     -- PHASE 1: FORWARD PASS (Calcul des dates au plus tôt)
     -- =============================================
-    FOR i IN 1..task_count LOOP
-        -- Traiter les tâches de départ (sans prédécesseurs)
-        UPDATE pert_calculations SET es = 0, ef = t_duration
-        WHERE es IS NULL AND NOT EXISTS (
-            SELECT 1 FROM dependencies d WHERE d.target_task_id = pert_calculations.t_id
-        );
+    UPDATE pert_calculations SET es = 0, ef = t_duration
+    WHERE NOT EXISTS (SELECT 1 FROM dependencies d WHERE d.target_task_id = pert_calculations.t_id);
 
-        -- On traite les tâches dont les prédécesseurs ont tous été calculés
+    FOR i IN 1..task_count LOOP
         UPDATE pert_calculations pc
         SET 
-            es = GREATEST(pc.es, calc.new_es),
-            ef = GREATEST(pc.es, calc.new_es) + pc.t_duration
+            es = calc.new_es,
+            ef = calc.new_es + pc.t_duration
         FROM (
             SELECT 
                 d.target_task_id as task_id,
@@ -343,23 +339,25 @@ BEGIN
             WHERE pred.es IS NOT NULL
             GROUP BY d.target_task_id
         ) AS calc
-        WHERE pc.t_id = calc.task_id;
+        WHERE pc.t_id = calc.task_id AND (pc.es IS NULL OR calc.new_es > pc.es);
+    END LOOP;
+
+    RAISE NOTICE '--- AFTER FORWARD PASS ---';
+    FOR rec IN SELECT * FROM pert_calculations LOOP
+        RAISE NOTICE 'ID: %, ES: %, EF: %', rec.t_id, rec.es, rec.ef;
     END LOOP;
 
     -- =============================================
     -- PHASE 2: BACKWARD PASS (Calcul des dates au plus tard)
     -- =============================================
     SELECT MAX(ef) INTO project_finish_date FROM pert_calculations;
-
-    -- Initialiser toutes les tâches avec la date de fin du projet
     UPDATE pert_calculations SET lf = project_finish_date, ls = project_finish_date - t_duration;
 
     FOR i IN 1..task_count LOOP
-        -- On traite les tâches dont les successeurs ont tous été calculés
         UPDATE pert_calculations pc
         SET 
-            lf = LEAST(pc.lf, calc.new_lf),
-            ls = LEAST(pc.lf, calc.new_lf) - pc.t_duration
+            lf = calc.new_lf,
+            ls = calc.new_lf - pc.t_duration
         FROM (
             SELECT 
                 d.source_task_id as task_id,
@@ -378,7 +376,12 @@ BEGIN
             WHERE succ.lf IS NOT NULL
             GROUP BY d.source_task_id
         ) AS calc
-        WHERE pc.t_id = calc.task_id;
+        WHERE pc.t_id = calc.task_id AND (pc.lf IS NULL OR calc.new_lf < pc.lf);
+    END LOOP;
+
+    RAISE NOTICE '--- AFTER BACKWARD PASS ---';
+    FOR rec IN SELECT * FROM pert_calculations LOOP
+        RAISE NOTICE 'ID: %, LS: %, LF: %', rec.t_id, rec.ls, rec.lf;
     END LOOP;
 
     -- =============================================
