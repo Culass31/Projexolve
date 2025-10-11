@@ -1,0 +1,11 @@
+ID,Nom,Durée,ES,EF,LS,LF,Flottement_Total,Flottement_Libre,Critique,Prédécesseurs
+PLAN,Planification,3.0,0,3,0,3,0.0,0.0,OUI,
+DESIGN,Design UI/UX,5.0,3,8,3,8,0.0,0.0,OUI,"Planification(FS,0)"
+FRONT,Développement Frontend,7.0,5,12,24,31,19.0,12.0,NON,"Design UI/UX(SS,2)"
+DB,Création base données,4.0,9,13,9,13,0.0,0.0,OUI,"Design UI/UX(FS,1)"
+API,Développement API,8.0,13,21,13,21,0.0,0.0,OUI,"Création base données(FS,0)"
+FORM,Formation utilisateurs,3.0,15,18,22,25,7.0,7.0,NON,"Documentation(FF,0)"
+DOC,Documentation,2.0,16,18,23,25,7.0,0.0,NON,"Développement API(SS,3)"
+TEST_UNIT,Tests unitaires,3.0,17,20,18,21,1.0,1.0,NON,"Développement API(FF,-1)"
+TEST_INT,Tests intégration,4.0,21,25,21,25,0.0,0.0,OUI,"Développement Frontend(SF,1); Développement API(FS,0); Tests unitaires(FS,0)"
+DEPLOY,Déploiement,1.0,25,26,25,26,0.0,0.0,OUI,"Tests intégration(FS,0); Formation utilisateurs(FS,0)"
